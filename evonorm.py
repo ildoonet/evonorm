@@ -13,13 +13,16 @@ def instance_std(x, eps=1e-5):
 
 def group_std(x, groups=32, eps=1e-5):
     N, C, H, W = x.size()
-    groups = min(groups, C)
-    try:
-        x = x.view((N, groups, C // groups, H, W))
-    except Exception as e:
-        print(x.shape)
-        print((N, groups, C // groups, H, W))
-        raise e
+
+    my_group_num = groups
+    if groups > C:
+        my_group_num = min(C, groups)
+    if C % my_group_num != 0:
+        for new_group in [32, 16, 8, 4, 2]:
+            if new_group < my_group_num and C % new_group == 0:
+                my_group_num = new_group
+
+    x = x.view((N, my_group_num, C // my_group_num, H, W))
     var = torch.var(x, dim=(2, 3, 4), keepdim=True).expand_as(x)
     return torch.sqrt(var + eps).view((N, C, H, W))
 
@@ -100,9 +103,6 @@ class EvoNorm2DS1(nn.Module):
         self.groups = groups
         self.gamma = nn.Parameter(torch.ones(1, self.channels, 1, 1))
         self.beta = nn.Parameter(torch.zeros(1, self.channels, 1, 1))
-
-        nn.init.constant_(self.gamma, 1)
-        nn.init.constant_(self.beta, 0)
 
     def forward(self, x):
         if x.dim() != 4:
