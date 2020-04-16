@@ -1,1 +1,1 @@
-from .evonorm import EvoNorm2DS0, EvoNorm2DS1
+from .evonorm import EvoNorm2DS0
